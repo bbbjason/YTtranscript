@@ -33,31 +33,41 @@ def extract_video_id(url: str) -> str:
 
     raise ValueError("無法從提供的連結中抓取到有效的 video_id，請確認 URL 格式。")
 
-
-def get_transcript_text(video_id: str, languages=("zh-Hant","zh-Hans","en")) -> str:
+def get_transcript_text(video_id: str, languages=("en")) -> str:
     api = YouTubeTranscriptApi()
-    
-    # 先嘗試指定語言的字幕
+    transcripts_list = None
+    try:
+        transcripts_list = api.list(video_id)
+    except Exception as e:
+        raise Exception(f"無法獲取字幕列表: {e}")
+
+    # 1. 嘗試指定語言的字幕
     for lang in languages:
         try:
-            transcripts = api.list(video_id)
-            transcript = transcripts.find_transcript([lang])
+            transcript = transcripts_list.find_transcript([lang])
             caption_data = transcript.fetch()
             return "\n".join(item["text"] for item in caption_data)
         except Exception:
             pass
 
-    # 嘗試獲取任何可用的字幕
+    # 2. 嘗試獲取任何可用的字幕並自動翻譯成繁體中文
     try:
-        transcripts = api.list(video_id)
-        # 嘗試自動翻譯成繁體中文
-        transcript = transcripts.find_transcript(languages)
+        # 嘗試尋找任何原始字幕，然後翻譯成繁體中文
+        transcript = transcripts_list.find_transcript([]) # 尋找任何原始字幕
         caption_data = transcript.translate("zh-Hant").fetch()
         return "\n".join(item["text"] for item in caption_data)
     except Exception:
         pass
 
-    # 如果都失敗
+    # 3. 如果以上都失敗，嘗試直接獲取任何可用的原始字幕 (不翻譯)
+    try:
+        transcript = transcripts_list.find_transcript([]) # 尋找任何原始字幕
+        caption_data = transcript.fetch()
+        return "\n".join(item["text"] for item in caption_data)
+    except Exception:
+        pass
+
+
     raise Exception("找不到符合需求的字幕，或該影片沒有公開/可取得的字幕。")
 
 
