@@ -35,35 +35,34 @@ def extract_video_id(url: str) -> str:
 
 
 def get_transcript_text(video_id: str, languages=("zh-Hant","zh-Hans","en")) -> str:
-    ytt_api = YouTubeTranscriptApi()
-    # 用 .list() 方法取得可用字幕清單
-    transcript_list = ytt_api.list(video_id)
-
+    api = YouTubeTranscriptApi()
+    
     # 先嘗試指定語言的字幕
     for lang in languages:
         try:
-            tr = transcript_list.find_transcript([lang])
-            caption_data = tr.fetch()
-            # caption_data 是 FetchedTranscript 或類似可以 to_raw_data
-            # 如果要舊格式，可以用 tr.fetch().to_raw_data() 或其他
-            return "\n".join(item["text"] for item in caption_data.to_raw_data())
+            transcripts = api.list(video_id)
+            transcript = transcripts.find_transcript([lang])
+            caption_data = transcript.fetch()
+            return "\n".join(item["text"] for item in caption_data)
         except Exception:
             pass
 
-    # 嘗試自動翻譯版本
+    # 嘗試獲取任何可用的字幕
     try:
-        tr = transcript_list.find_transcript(languages).translate("zh-Hant")
-        caption_data = tr.fetch()
-        return "\n".join(item["text"] for item in caption_data.to_raw_data())
+        transcripts = api.list(video_id)
+        # 嘗試自動翻譯成繁體中文
+        transcript = transcripts.find_transcript(languages)
+        caption_data = transcript.translate("zh-Hant").fetch()
+        return "\n".join(item["text"] for item in caption_data)
     except Exception:
         pass
 
     # 如果都失敗
-    raise NoTranscriptFound("找不到符合需求的字幕，或該影片沒有公開/可取得的字幕。")
+    raise Exception("找不到符合需求的字幕，或該影片沒有公開/可取得的字幕。")
 
 
 def main():
-    YOUTUBE_URL = "https://www.youtube.com/live/80s0chTOsK0?feature=shared"
+    YOUTUBE_URL = "https://youtu.be/Tld91M_bcEI?si=vJ5M5t7AbJon_uqK"
     OUTPUT_FILE = "captions.txt"
 
     try:
